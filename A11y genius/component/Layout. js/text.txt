@@ -1,0 +1,194 @@
+import { useAuth } from '../contexts/AuthContext';
+import Link from 'next/link';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+export default function Layout({ children }) {
+  const { user, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navigation = [
+    { name: 'Home', href: '/' },
+    { name: 'Pricing', href: '/pricing' },
+    ...(user ? [
+      { name: 'Dashboard', href: '/dashboard' },
+      { name: 'History', href: '/history' },
+    ] : []),
+  ];
+
+  return (
+    
+      {/* Header */}
+      
+        
+          
+            {/* Logo */}
+            
+              
+                
+                  A11y
+                
+                Genius
+              
+            
+
+            {/* Desktop Navigation */}
+            
+              {navigation.map((item) => (
+                
+                  
+                    {item.name}
+                  
+                
+              ))}
+            
+
+            {/* Auth Section */}
+            
+              {user ? (
+                
+                  
+                    
+                      {user.name?.charAt(0).toUpperCase()}
+                    
+                    {user.name}
+                    {user.subscriptionTier === 'pro' && (
+                      
+                        PRO
+                      
+                    )}
+                  
+                  
+                    Logout
+                  
+                
+              ) : (
+                
+                  
+                    
+                      Login
+                    
+                  
+                  
+                    
+                      Sign Up
+                    
+                  
+                
+              )}
+
+              {/* Mobile menu button */}
+               setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                
+                  
+                
+              
+            
+          
+        
+
+        {/* Mobile Navigation */}
+        
+          {mobileMenuOpen && (
+            
+              
+                {navigation.map((item) => (
+                  
+                    
+                      {item.name}
+                    
+                  
+                ))}
+                {user && (
+                  
+                    
+                      
+                        {user.name?.charAt(0).toUpperCase()}
+                      
+                      {user.name}
+                    
+                    
+                      Logout
+                    
+                  
+                )}
+              
+            
+          )}
+        
+      
+
+      {/* Main Content */}
+      
+        {children}
+      
+
+      {/* Footer */}
+      
+        
+          
+            
+              
+                
+                  A11y
+                
+                Genius
+              
+              
+                AI-powered accessibility scanning and compliance tool. 
+                Make your website accessible to everyone.
+              
+            
+
+            
+              Product
+              
+                Pricing
+                Features
+                API
+              
+            
+
+            
+              Resources
+              
+                Blog
+                Guides
+                WCAG Guide
+              
+            
+
+            
+              Support
+              
+                Contact
+                Help Center
+                Privacy Policy
+              
+            
+          
+
+          
+            
+              © 2024 A11y Genius. All rights reserved.
+            
+            
+              
+                
+                  
+                
+              
+              
+                
+                  
+                
+              
+            
+          
+        
+      
+    
+  );
+}

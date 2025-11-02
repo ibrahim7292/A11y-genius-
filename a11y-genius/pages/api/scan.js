@@ -1,0 +1,109 @@
+const db = require('../../lib/db');
+const { requireAuth } = require('../../lib/auth');
+const { scanWebsite } = require('../../lib/scanner');
+const { generateFixSuggestions, generateSummaryReport } = require('../../lib/ai');
+
+async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { url, siteName } = req.body;
+    const userId = req.user.id;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    // Check subscription limits
+    const subscriptionTier = req.user.subscriptionTier;
+    const today = new Date().toISOString().split('T')[0];
+    
+    const todayScansResult = await db.query(
+      'SELECT COUNT(*) as count FROM scans WHERE user_id = $1 AND DATE(created_at) = $2',
+      [userId, today]
+    );
+    
+    const todayScans = parseInt(todayScansResult.rows[0].count);
+    const maxScans = subscriptionTier === 'pro' ? 100 : 5;
+    
+    if (todayScans >= maxScans) {
+      return res.status(429).json({ 
+        error: `Daily scan limit reached. ${subscriptionTier === 'free' ? 'Upgrade to Pro for more scans.' : 'Contact support.'}` 
+      });
+    }
+
+    // Create or find site
+    let siteResult = await db.query(
+      'SELECT id FROM sites WHERE user_id = $1 AND url = $2',
+      [userId, url]
+    );
+
+    let siteId;
+    if (siteResult.rows.length === 0) {
+      const newSiteResult = await db.query(
+        'INSERT INTO sites (user_id, url, name) VALUES ($1, $2, $3) RETURNING id',
+        [userId, url, siteName || new URL(url).hostname]
+      );
+      siteId = newSiteResult.rows[0].id;
+    } else {
+      siteId = siteResult.rows[0].id;
+    }
+
+    // Create scan record
+    const scanResult = await db.query(
+      'INSERT INTO scans (site_id, user_id, url, status) VALUES ($1, $2, $3, $4) RETURNING id',
+      [siteId, userId, url, 'scanning']
+    );
+
+    const scanId = scanResult.rows[0].id;
+
+    // Return scan ID immediately for real-time updates
+    res.status(202).json({
+      success: true,
+      scanId,
+      message: 'Scan started. Check status for results.'
+    });
+
+    // Perform scan asynchronously
+    try {
+      const scanResults = await scanWebsite(url);
+      const aiSuggestions = await generateFixSuggestions(scanResults.issues);
+      const summary = generateSummaryReport(scanResults, aiSuggestions);
+
+      // Update scan with results
+      await db.query(
+        'UPDATE scans SET status = $1, score = $2, issues = $3, suggestions = $4, ai_summary = $5, completed_at = NOW() WHERE id = $6',
+        [
+          'completed',
+          scanResults.score,
+          JSON.stringify(scanResults.issues),
+          JSON.stringify(aiSuggestions.suggestions),
+          summary.summary,
+          scanId
+        ]
+      );
+
+    } catch (scanError) {
+      console.error('Scan error:', scanError);
+      await db.query(
+        'UPDATE scans SET status = $1, ai_summary = $2 WHERE id = $3',
+        ['failed', 'Scan failed: ' + scanError.message, scanId]
+      );
+    }
+
+  } catch (error) {
+    console.error('Scan API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export default requireAuth(handler);

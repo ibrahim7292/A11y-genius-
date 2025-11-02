@@ -1,0 +1,205 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
+import { motion } from 'framer-motion';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import Link from 'next/link';
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  const [url, setUrl] = useState('');
+  const [siteName, setSiteName] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [recentScans, setRecentScans] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRecentScans();
+  }, []);
+
+  const fetchRecentScans = async () => {
+    try {
+      const response = await axios.get('/api/reports?limit=5');
+      setRecentScans(response.data.scans);
+    } catch (error) {
+      console.error('Error fetching scans:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleScan = async (e) => {
+    e.preventDefault();
+    if (!url) return;
+
+    setScanning(true);
+    
+    try {
+      const response = await axios.post('/api/scan', { url, siteName });
+      const { scanId } = response.data;
+      
+      toast.success('Scan started! Redirecting to results...');
+      
+      // Redirect to scan results page
+      setTimeout(() => {
+        window.location.href = `/scan/${scanId}`;
+      }, 1000);
+      
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Scan failed');
+      setScanning(false);
+    }
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 90) return 'text-green-600';
+    if (score >= 75) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getScoreBg = (score) => {
+    if (score >= 90) return 'bg-green-100';
+    if (score >= 75) return 'bg-yellow-100';
+    return 'bg-red-100';
+  };
+
+  if (loading) {
+    return (
+      
+        
+          
+        
+      
+    );
+  }
+
+  return (
+    
+      
+        {/* Header */}
+        
+          
+            Welcome back, {user?.name}!
+          
+          
+            Scan your websites for accessibility issues and get AI-powered fix suggestions.
+          
+        
+
+        {/* Scan Form */}
+        
+          Start New Scan
+          
+          
+            
+              
+                Website URL *
+              
+               setUrl(e.target.value)}
+                placeholder="https://example.com"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            
+            
+            
+              
+                Site Name (Optional)
+              
+               setSiteName(e.target.value)}
+                placeholder="My Website"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            
+            
+            
+              {scanning ? (
+                
+                  
+                  Scanning...
+                
+              ) : (
+                'Scan Now'
+              )}
+            
+          
+          
+          {user?.subscriptionTier === 'free' && (
+            
+              
+                🚀 Free Plan: 5 scans per day. 
+                
+                  Upgrade to Pro
+                 for unlimited scans!
+              
+            
+          )}
+        
+
+        {/* Recent Scans */}
+        
+          
+            Recent Scans
+            
+              View All
+            
+          
+          
+          {recentScans.length === 0 ? (
+            
+              📊
+              No scans yet
+              Start your first accessibility scan above!
+            
+          ) : (
+            
+              {recentScans.map((scan) => (
+                
+                  
+                    
+                      
+                        {scan.siteName || 'Unnamed Site'}
+                      
+                      {scan.url}
+                      
+                        
+                          {new Date(scan.createdAt).toLocaleDateString()}
+                        
+                        {scan.totalIssues > 0 && (
+                          {scan.totalIssues} issues found
+                        )}
+                      
+                    
+                    
+                    
+                      {scan.status === 'completed' && scan.score !== null && (
+                        
+                          {scan.score}%
+                        
+                      )}
+                      
+                      
+                        {scan.status === 'completed' ? (
+                          
+                            
+                              View Report
+                            
+                          
+                        ) : scan.status === 'scanning' ? (
+                          Scanning...
+                        ) : (
+                          Failed
+                        )}
+                      
+                    
+                  
+                
+              ))}
+            
+          )}
+        
+      
+    
+  );
+}

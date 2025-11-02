@@ -1,0 +1,187 @@
+import { useState } from 'react';
+import Link from 'next/link';
+import Layout from '../components/Layout';
+import { motion } from 'framer-motion';
+
+export default function Home() {
+  const [demoUrl, setDemoUrl] = useState('');
+
+  const handleDemoSubmit = (e) => {
+    e.preventDefault();
+    if (demoUrl) {
+      window.open(`/signup?demo=${encodeURIComponent(demoUrl)}`, '_blank');
+    }
+  };
+
+  return (
+    
+      {/* Hero Section */}
+      
+        
+          
+            
+              Make Your Website
+               Accessible
+            
+            
+            
+              AI-powered accessibility scanner that detects WCAG issues and provides 
+              instant fix suggestions. Ensure your website is accessible to everyone.
+            
+
+            
+              
+                
+                  Start Free Scan
+                
+              
+              
+              
+                
+                  View Pricing
+                
+              
+            
+
+            {/* Demo Form */}
+            
+              
+                 setDemoUrl(e.target.value)}
+                  placeholder="Enter website URL for demo"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                
+                  Try Demo
+                
+              
+            
+          
+        
+      
+
+      {/* Features Section */}
+      
+        
+          
+            
+              Everything You Need for Accessibility
+            
+            
+              Comprehensive accessibility testing with AI-powered insights
+            
+          
+
+          
+            {[
+              {
+                icon: '🤖',
+                title: 'AI-Powered Analysis',
+                description: 'Advanced AI analyzes your website and provides intelligent fix suggestions for every accessibility issue found.'
+              },
+              {
+                icon: '⚡',
+                title: 'Instant Scanning',
+                description: 'Get comprehensive accessibility reports in seconds. No waiting, no complicated setup required.'
+              },
+              {
+                icon: '📊',
+                title: 'Detailed Reports',
+                description: 'Download professional PDF reports with compliance scores, issue breakdowns, and fix priorities.'
+              },
+              {
+                icon: '🔧',
+                title: 'One-Click Fixes',
+                description: 'Apply suggested fixes directly to your website with our automated fix implementation system.'
+              },
+              {
+                icon: '📈',
+                title: 'Track Progress',
+                description: 'Monitor your accessibility improvements over time with detailed scan history and trend analysis.'
+              },
+              {
+                icon: '✅',
+                title: 'WCAG Compliance',
+                description: 'Ensure your website meets WCAG 2.1 AA standards and ADA compliance requirements.'
+              }
+            ].map((feature, index) => (
+              
+                {feature.icon}
+                
+                  {feature.title}
+                
+                
+                  {feature.description}
+                
+              
+            ))}
+          
+        
+      
+
+      {/* How It Works */}
+      
+        
+          
+            
+              How It Works
+            
+            
+              Get accessibility insights in 3 simple steps
+            
+          
+
+          
+            {[
+              {
+                step: '1',
+                title: 'Enter Your URL',
+                description: 'Simply paste your website URL and click "Scan Now" to begin the accessibility analysis.'
+              },
+              {
+                step: '2',
+                title: 'AI Analysis',
+                description: 'Our AI scans your website for accessibility issues and generates detailed fix suggestions.'
+              },
+              {
+                step: '3',
+                title: 'Get Results',
+                description: 'Receive your compliance score, issue list, and downloadable PDF report with action items.'
+              }
+            ].map((step, index) => (
+              
+                
+                  {step.step}
+                
+                
+                  {step.title}
+                
+                
+                  {step.description}
+                
+              
+            ))}
+          
+        
+      
+
+      {/* CTA Section */}
+      
+        
+          
+            
+              Ready to Make Your Website Accessible?
+            
+            
+              Join thousands of developers and businesses ensuring their websites are accessible to everyone.
+            
+            
+              
+                Start Your Free Scan
+              
+            
+          
+        
+      
+    
+  );
+}

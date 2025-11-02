@@ -1,0 +1,90 @@
+const db = require('../lib/db');
+const { requireAuth } = require('../lib/auth');
+
+async function handler(req, res) {
+  const userId = req.user.id;
+
+  if (req.method === 'GET') {
+    try {
+      const { scanId, page = 1, limit = 10 } = req.query;
+
+      if (scanId) {
+        // Get specific scan
+        const scanResult = await db.query(
+          `SELECT s.*, si.name as site_name, si.url as site_url 
+           FROM scans s 
+           JOIN sites si ON s.site_id = si.id 
+           WHERE s.id = $1 AND s.user_id = $2`,
+          [scanId, userId]
+        );
+
+        if (scanResult.rows.length === 0) {
+          return res.status(404).json({ error: 'Scan not found' });
+        }
+
+        const scan = scanResult.rows[0];
+        res.status(200).json({
+          success: true,
+          scan: {
+            id: scan.id,
+            url: scan.url,
+            siteName: scan.site_name,
+            status: scan.status,
+            score: scan.score,
+            issues: scan.issues ? JSON.parse(scan.issues) : [],
+            suggestions: scan.suggestions ? JSON.parse(scan.suggestions) : [],
+            aiSummary: scan.ai_summary,
+            createdAt: scan.created_at,
+            completedAt: scan.completed_at
+          }
+        });
+      } else {
+        // Get user's scan history
+        const offset = (page - 1) * limit;
+        const scansResult = await db.query(
+          `SELECT s.*, si.name as site_name, si.url as site_url 
+           FROM scans s 
+           JOIN sites si ON s.site_id = si.id 
+           WHERE s.user_id = $1 
+           ORDER BY s.created_at DESC 
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, offset]
+        );
+
+        const totalResult = await db.query(
+          'SELECT COUNT(*) as total FROM scans WHERE user_id = $1',
+          [userId]
+        );
+
+        const scans = scansResult.rows.map(scan => ({
+          id: scan.id,
+          url: scan.url,
+          siteName: scan.site_name,
+          status: scan.status,
+          score: scan.score,
+          totalIssues: scan.issues ? JSON.parse(scan.issues).length : 0,
+          createdAt: scan.created_at,
+          completedAt: scan.completed_at
+        }));
+
+        res.status(200).json({
+          success: true,
+          scans,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: parseInt(totalResult.rows[0].total),
+            pages: Math.ceil(totalResult.rows[0].total / limit)
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Reports GET error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  } else {
+    res.status(405).json({ error: 'Method not allowed' });
+  }
+}
+
+export default requireAuth(handler);

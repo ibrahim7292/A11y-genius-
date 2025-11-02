@@ -1,0 +1,144 @@
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/**
+ * Generate AI-powered fix suggestions
+ */
+const generateFixSuggestions = async (issues) => {
+  if (!issues || issues.length === 0) {
+    return {
+      summary: 'Great job! No accessibility issues found.',
+      suggestions: []
+    };
+  }
+
+  const prompt = `As an accessibility expert, analyze these website issues and provide specific fix suggestions:
+
+Issues found:
+${issues.map(issue => `- ${issue.type}: ${issue.message} (${issue.severity} priority)`).join('\n')}
+
+Please provide:
+1. A brief summary of the overall accessibility status
+2. Specific, actionable fix suggestions for each issue
+3. Code examples where helpful
+4. Priority recommendations
+
+Format as JSON with "summary" and "suggestions" fields.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert web accessibility consultant specializing in WCAG 2.1 AA compliance. Provide clear, actionable advice."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      max_tokens: 1500,
+      temperature: 0.7,
+    });
+
+    const aiResponse = response.choices[0].message.content;
+    
+    // Try to parse as JSON, fallback to text format
+    try {
+      return JSON.parse(aiResponse);
+    } catch (parseError) {
+      return {
+        summary: "AI analysis completed successfully.",
+        suggestions: aiResponse.split('\n').filter(line => line.trim().length > 0)
+      };
+    }
+    
+  } catch (error) {
+    console.error('AI generation error:', error);
+    
+    // Fallback suggestions based on issue types
+    const fallbackSuggestions = issues.map(issue => {
+      switch (issue.type) {
+        case 'missing_alt_text':
+          return {
+            issue: issue.type,
+            fix: 'Add descriptive alt text to images: ',
+            priority: 'high',
+            code: ``
+          };
+        case 'missing_form_label':
+          return {
+            issue: issue.type,
+            fix: 'Add labels to form elements or use aria-label attribute',
+            priority: 'high',
+            code: 'Label text'
+          };
+        case 'low_contrast':
+          return {
+            issue: issue.type,
+            fix: 'Increase color contrast ratio to meet WCAG AA standards (4.5:1 for normal text)',
+            priority: 'medium',
+            code: 'color: #333333; /* Dark text on light background */'
+          };
+        case 'missing_headings':
+          return {
+            issue: issue.type,
+            fix: 'Add proper heading structure starting with h1',
+            priority: 'medium',
+            code: 'Main Page TitleSection Title'
+          };
+        case 'missing_landmarks':
+          return {
+            issue: issue.type,
+            fix: 'Add ARIA landmarks or semantic HTML5 elements',
+            priority: 'medium',
+            code: ''
+          };
+        default:
+          return {
+            issue: issue.type,
+            fix: issue.message,
+            priority: issue.severity,
+            code: 'Review element and apply appropriate accessibility fixes'
+          };
+      }
+    });
+
+    return {
+      summary: `Found ${issues.length} accessibility issues that need attention. Focus on high-priority fixes first.`,
+      suggestions: fallbackSuggestions
+    };
+  }
+};
+
+/**
+ * Generate summary report
+ */
+const generateSummaryReport = (scanResults, aiSuggestions) => {
+  const { score, issues, totalIssues } = scanResults;
+  
+  let status = 'Excellent';
+  if (score < 50) status = 'Needs Improvement';
+  else if (score < 75) status = 'Good';
+  else if (score < 90) status = 'Very Good';
+  
+  return {
+    score,
+    status,
+    totalIssues,
+    highPriorityIssues: issues.filter(i => i.severity === 'high').length,
+    mediumPriorityIssues: issues.filter(i => i.severity === 'medium').length,
+    lowPriorityIssues: issues.filter(i => i.severity === 'low').length,
+    summary: aiSuggestions.summary,
+    recommendations: aiSuggestions.suggestions
+  };
+};
+
+module.exports = {
+  generateFixSuggestions,
+  generateSummaryReport
+};
